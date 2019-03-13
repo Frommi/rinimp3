@@ -12,6 +12,7 @@
 )]
 
 extern crate byteorder;
+extern crate core;
 
 #[cfg(test)]
 extern crate structopt;
@@ -37,18 +38,9 @@ pub mod huffman;
 /// This function is here to take care of the common C
 /// idiom of looping down a pointer to an array and bumping
 /// the position of the pointer each iteration of the loop.
-/// This works fine in Rust just by doing `s = s[1..];`
-/// for immutable borrows, but with mutable ones this behavior
-/// causes a double-borrow.  It SHOULD be safe though, so
-/// this helper does takes a `&mut` to the slice(!) and does
-/// it for us.  Panics if you try to increment past the end
-/// of the slice.
+/// Panics if you try to increment past the end of the slice.
 pub(crate) fn increment_by_mut<T>(slice: &mut &mut [T], amount: usize) {
-    let lifetime_hack = unsafe {
-        let slice_ptr = slice.as_mut_ptr();
-        ::std::slice::from_raw_parts_mut(slice_ptr, slice.len())
-    };
-    *slice = &mut lifetime_hack[amount..]
+    *slice = &mut core::mem::replace(slice, &mut [])[amount..]
 }
 
 /// Same as `increment_by_mut()` but operates on a mutable
@@ -59,11 +51,7 @@ pub(crate) fn increment_by_mut<T>(slice: &mut &mut [T], amount: usize) {
 /// or altered, but let's follow std's convention of naming
 /// const vs. mut.
 pub(crate) fn increment_by<T>(slice: &mut &[T], amount: usize) {
-    let lifetime_hack = unsafe {
-        let slice_ptr = slice.as_ptr();
-        ::std::slice::from_raw_parts(slice_ptr, slice.len())
-    };
-    *slice = &lifetime_hack[amount..]
+    *slice = &core::mem::replace(slice, &[])[amount..]
 }
 
 static GPOW43: [f32; 145] = [
